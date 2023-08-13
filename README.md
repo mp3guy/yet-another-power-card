@@ -1,7 +1,7 @@
 # Yet Another Power Card (YAPC)
 For Home Assistant.
 
-https://github.com/mp3guy/power-card/assets/3238631/5515060d-59a3-4921-a315-2c561f630396
+https://github.com/mp3guy/yet-another-power-card/assets/3238631/a4678dda-7f67-4633-9a88-a0d5b6599028
 
 This is yet another power flow card for home assistant. It is a heavily modified hard fork of @reptilex's [tesla-style-solar-power-card](https://github.com/reptilex/tesla-style-solar-power-card). My home power setup is quite extensive and I couldn't find a solution for visualization that met my needs, so I created this card. Note the video above uses some placeholder values for illustration purposes only; the video below is a real setup capture.
 
@@ -85,7 +85,7 @@ building3_to_appliance3_entity: sensor.shelly_em_stables_channel_2_power
 ```
 With entities customized to your own specific values. This configuration looks like so:
 
-https://github.com/mp3guy/power-card/assets/3238631/84b07528-9228-4073-9393-ea63d521fa95
+https://github.com/mp3guy/yet-another-power-card/assets/3238631/4c576c3c-73ae-4a20-85ef-6f4f2e8a5db5
 
 ## How to calculate entities
 Like its predecessor, everything is specified in terms of `_to_` entities that are always positive. These can be tricky to work out, so here's a guide:
