@@ -1063,7 +1063,7 @@ export class PowerCard extends LitElement {
 
         if (
           bubbleData.mainUnitOfMeasurement === 'W' &&
-          bubbleData.mainValue < 0
+          bubbleData.mainValue < 5
         ) {
           bubbleData.disabled = true;
         }
