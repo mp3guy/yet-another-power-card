@@ -381,6 +381,8 @@ export class PowerCard extends LitElement {
 
     if (powerCardElement == null) return oldWidth;
 
+    if (newWidth < 200) newWidth = 250;
+
     const pxRate = newWidth / 120;
 
     this.cardElements.forEach((_, key) => {
@@ -585,10 +587,9 @@ export class PowerCard extends LitElement {
   async firstUpdated(): Promise<void> {
     // Give the browser a chance to paint
     await new Promise(r => setTimeout(r, 0));
-    this.oldWidth = this.changeStylesDependingOnWidth(
-      this.clientWidth,
-      this.oldWidth,
-    );
+    const realWidth = this.getBoundingClientRect().width;
+
+    this.oldWidth = this.changeStylesDependingOnWidth(realWidth, this.oldWidth);
   }
 
   public connectedCallback(): void {
@@ -645,7 +646,9 @@ export class PowerCard extends LitElement {
   }
 
   protected render(): TemplateResult | void {
-    const newWidth = this.clientWidth <= 100 ? 250 : this.clientWidth;
+    let newWidth = this.getBoundingClientRect().width;
+
+    if (newWidth < 200) newWidth = 250;
 
     this.pxRate = newWidth / 120;
 
@@ -1314,8 +1317,10 @@ export class PowerCard extends LitElement {
 
   private redraw(ev: UIEvent) {
     if (this.hass && this.config && ev.type === 'resize') {
+      const realWidth = this.getBoundingClientRect().width;
+
       this.oldWidth = this.changeStylesDependingOnWidth(
-        this.clientWidth,
+        realWidth,
         this.oldWidth,
       );
     }
