@@ -6,7 +6,7 @@ import {
   css,
   PropertyValues,
 } from 'lit';
-import { property } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import {
   ActionConfig,
   HomeAssistant,
@@ -119,8 +119,7 @@ export class BubbleData {
 }
 
 export class SensorElement {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public value: any;
+  public value: number | string = 0;
   public speed = 0;
   public currentDelta = 0;
   public maxPosition = 30;
@@ -142,9 +141,9 @@ export class SensorElement {
   public entitySlot: string;
   private static readonly defaultSpeedFactor = 0.04;
 
-  constructor(entity: string, enitySlot: string) {
+  constructor(entity: string, entitySlot: string) {
     this.entity = entity;
-    this.entitySlot = enitySlot;
+    this.entitySlot = entitySlot;
     this.value = 0;
   }
 
@@ -200,7 +199,8 @@ export class SensorElement {
       speedFactor = factor;
     }
 
-    this.speed = (speedFactor * this.value) / 1000;
+    const numValue = typeof this.value === 'number' ? this.value : 0;
+    this.speed = (speedFactor * numValue) / 1000;
 
     if (this.speed > 0) {
       this.nonZeroInARow++;
@@ -239,9 +239,9 @@ export class SensorElement {
 
 export class PowerCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
-  @property() private config!: PowerCardConfig;
-  @property() private oldWidth = 100;
-  @property({ attribute: false }) public cardElements: Map<
+  @state() private config!: PowerCardConfig;
+  @state() private oldWidth = 100;
+  @state() public cardElements: Map<
     string,
     SensorElement
   > = new Map();
@@ -249,6 +249,8 @@ export class PowerCard extends LitElement {
   private disabledEntities: Set<string> = new Set();
   private pxRate = 4;
   private powerCardElement?: HTMLElement;
+  private animationIntervalId?: ReturnType<typeof setInterval>;
+  private boundRedraw = this.redraw.bind(this);
 
   readonly colorMapping: { [key: string]: string } = {
     inverter: '#ff702b',
@@ -340,9 +342,10 @@ export class PowerCard extends LitElement {
 
     this.createCardElements();
 
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const obj = this;
-    setInterval(this.animateCircles, 15, obj);
+    if (this.animationIntervalId != null) {
+      clearInterval(this.animationIntervalId);
+    }
+    this.animationIntervalId = setInterval(() => this.animateCircles(), 15);
   }
 
   private createCardElements(): void {
@@ -594,44 +597,43 @@ export class PowerCard extends LitElement {
 
   public connectedCallback(): void {
     super.connectedCallback();
-    this.redraw = this.redraw.bind(this);
-    window.addEventListener('resize', this.redraw);
+    window.addEventListener('resize', this.boundRedraw);
+  }
+
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    if (this.animationIntervalId != null) {
+      clearInterval(this.animationIntervalId);
+      this.animationIntervalId = undefined;
+    }
+    window.removeEventListener('resize', this.boundRedraw);
   }
 
   public shouldUpdate(changedProperties: PropertyValues): boolean {
-    requestAnimationFrame(timestamp => {
-      this.updateAllCircles(timestamp);
-    });
-
     // Update only when our values in hass changed
-    let update = true;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Array.from(changedProperties.keys()).some((propName: any) => {
-      const oldValue = changedProperties.get(propName);
+    for (const [propName, oldValue] of changedProperties) {
       if (propName === 'hass' && oldValue) {
-        update = update && this.sensorChangeDetected(oldValue);
+        return this.sensorChangeDetected(oldValue as HomeAssistant);
       }
-      return !update;
-    });
-    return update;
+    }
+    return true;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private sensorChangeDetected(oldValue: any): boolean {
-    let change = false;
-    this.cardElements.forEach((_, key) => {
-      if (
-        this.hass.states[this.config[key]] !== undefined &&
-        this.hass.states[this.config[key]].state !==
-          oldValue.states[this.config[key]].state
-      ) {
-        change = true;
+  private sensorChangeDetected(oldValue: HomeAssistant): boolean {
+    for (const key of this.cardElements.keys()) {
+      const entityId = this.config[key];
+      const newState = this.hass.states[entityId];
+      const oldState = oldValue.states[entityId];
+      if (newState !== undefined && oldState !== undefined &&
+          newState.state !== oldState.state) {
+        return true;
       }
-    });
-    return change;
+    }
+    return false;
   }
 
-  public async performUpdate(): Promise<void> {
+  protected willUpdate(changedProperties: PropertyValues): void {
+    super.willUpdate(changedProperties);
     this.cardElements.forEach(sensor => {
       if (this.hass.states[sensor.entity]) {
         sensor.setValueAndUnitOfMeasurement(
@@ -641,8 +643,6 @@ export class PowerCard extends LitElement {
         sensor.setSpeed(this.config.speed_factor);
       }
     });
-
-    super.performUpdate();
   }
 
   protected render(): TemplateResult | void {
@@ -1117,16 +1117,17 @@ export class PowerCard extends LitElement {
 
       if (cardElement !== null && cardElement?.value !== undefined) {
         bubbleData.noEntitiesWithValueFound = false;
+        const numericValue = typeof cardElement.value === 'number' ? cardElement.value : 0;
         bubbleData.mainValue = isSubstractionEntity
-          ? bubbleData.mainValue - cardElement?.value
-          : bubbleData.mainValue + cardElement?.value;
+          ? bubbleData.mainValue - numericValue
+          : bubbleData.mainValue + numericValue;
         bubbleData.mainUnitOfMeasurement = cardElement?.unitOfMeasurement;
       }
     });
 
     if (extraEntitySlot !== null) {
       const extraEntity = this.cardElements.get(extraEntitySlot);
-      bubbleData.extraValue = extraEntity?.value;
+      bubbleData.extraValue = extraEntity?.value?.toString();
       bubbleData.extraUnitOfMeasurement = extraEntity?.unitOfMeasurement;
 
       if (bubbleData.extraValue == 'unknown') {
@@ -1195,10 +1196,9 @@ export class PowerCard extends LitElement {
     return bubbleData;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private animateCircles(obj: any) {
+  private animateCircles() {
     requestAnimationFrame(timestamp => {
-      obj.updateAllCircles(timestamp);
+      this.updateAllCircles(timestamp);
     });
   }
 
@@ -1252,13 +1252,13 @@ export class PowerCard extends LitElement {
     if (isEntityDisabled || entity.speed === 0 || !entity.spuriousValue()) {
       entity.circle.setAttribute('visibility', 'hidden');
       if (this.config.hide_inactive_entities) {
-        entity.line.setAttribute('visibility', 'hidden');
+        entity.line?.setAttribute('visibility', 'hidden');
       }
       return;
     }
 
     entity.circle.setAttribute('visibility', 'visible');
-    entity.line.setAttribute('visibility', 'visible');
+    entity.line?.setAttribute('visibility', 'visible');
 
     if (entity.prevTimestamp === 0) {
       entity.prevTimestamp = timestamp;
