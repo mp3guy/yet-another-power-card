@@ -27,6 +27,7 @@ export interface PowerCardConfig extends LovelaceCardConfig {
   battery_icon?: string;
   pv0_icon?: string;
   pv1_icon?: string;
+  pv2_icon?: string;
   inverter0_icon?: string;
   inverter1_icon?: string;
   building0_icon?: string;
@@ -48,6 +49,7 @@ export interface PowerCardConfig extends LovelaceCardConfig {
   battery_entity?: string;
   pv0_entity?: string;
   pv1_entity?: string;
+  pv2_entity?: string;
   inverter0_entity?: string;
   inverter1_entity?: string;
   building0_entity?: string;
@@ -59,6 +61,7 @@ export interface PowerCardConfig extends LovelaceCardConfig {
   pv0_to_battery_entity?: string;
   pv0_to_inverter0_entity?: string;
   pv1_to_inverter1_entity?: string;
+  pv2_to_inverter1_entity?: string;
   battery_to_inverter0_entity?: string;
   inverter0_to_battery_entity?: string;
   inverter1_to_inverter0_entity?: string;
@@ -84,6 +87,7 @@ export interface PowerCardConfig extends LovelaceCardConfig {
   grid_extra_entity?: string;
   pv0_extra_entity?: string;
   pv1_extra_entity?: string;
+  pv2_extra_entity?: string;
   inverter0_extra_entity?: string;
   inverter1_extra_entity?: string;
   building0_extra_entity?: string;
@@ -305,6 +309,8 @@ export class PowerCard extends LitElement {
       this.config.pv0_icon = 'mdi:solar-power-variant';
     if (this.config.pv1_icon == null)
       this.config.pv1_icon = 'mdi:solar-power-variant';
+    if (this.config.pv2_icon == null)
+      this.config.pv2_icon = 'mdi:solar-power-variant';
 
     if (this.config.inverter0_icon == null)
       this.config.inverter0_icon = 'mdi:meter-electric';
@@ -659,6 +665,7 @@ export class PowerCard extends LitElement {
     const gridAreas = [
       'pv_0',
       'pv_1',
+      'pv_2',
       'battery',
       'inverter_0',
       'inverter_1',
@@ -803,8 +810,11 @@ export class PowerCard extends LitElement {
 
     const gridContainer = html`
       <div class="grid_container">
-        <div class="pv_0">${this.writePvIconBubble(0)}</div>
-        <div class="pv_1">${this.writePvIconBubble(1)}</div>
+        <div class="pv_row">
+          <div class="pv_0">${this.writePvIconBubble(0)}</div>
+          <div class="pv_1">${this.writePvIconBubble(1)}</div>
+          <div class="pv_2">${this.writePvIconBubble(2)}</div>
+        </div>
         <div class="battery">${this.writeBatteryIconBubble()}</div>
         <div class="inverter_0">${this.writeInverterIconBubble(0)}</div>
         <div class="inverter_1">${this.writeInverterIconBubble(1)}</div>
@@ -872,6 +882,8 @@ export class PowerCard extends LitElement {
         'pv' + pvNumber + '_to_inverter' + pvNumber + '_entity',
         'pv' + pvNumber + '_to_battery_entity',
       ];
+    } else if (pvNumber === 2) {
+      pvEntities = ['pv2_to_inverter1_entity'];
     } else {
       pvEntities = ['pv' + pvNumber + '_to_inverter' + pvNumber + '_entity'];
     }
@@ -1364,25 +1376,23 @@ export class PowerCard extends LitElement {
       .grid_container {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr 1fr;
-        grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
+        grid-template-rows: auto 1fr 1fr 1fr 1fr;
         gap: 10px 10px;
         grid-auto-flow: row;
         z-index: 2;
         position: relative;
         grid-template-areas:
-          '. pv_0 pv_1 .'
+          'pv_row pv_row pv_row pv_row'
           'battery inverter_0 inverter_1 ev_0'
           'ev_1 grid building_0 ev_2'
           'appliance_0 building_1 building_2 appliance_1'
           'appliance_2 building_3 appliance_3 appliance_4';
       }
 
-      .pv_0 {
-        grid-area: pv_0;
-      }
-
-      .pv_1 {
-        grid-area: pv_1;
+      .pv_row {
+        grid-area: pv_row;
+        display: flex;
+        justify-content: space-evenly;
       }
 
       .battery {
