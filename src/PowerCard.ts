@@ -744,8 +744,8 @@ export class PowerCard extends LitElement {
               //If the key is inverter0_to_building1, then we need to add a detour to the line
               if (key.includes('inverter0_to_building1')) {
                 const detourX =
-                  centerCoordinates['grid'].x -
-                  (centerCoordinates['grid'].x - centerCoordinates['ev1'].x) /
+                  centerCoordinates['building0'].x -
+                  (centerCoordinates['building0'].x - centerCoordinates['grid'].x) /
                     2;
 
                 const detourY = centerCoordinates['grid'].y;
@@ -1382,8 +1382,8 @@ export class PowerCard extends LitElement {
         z-index: 2;
         position: relative;
         grid-template-areas:
-          '. pv_0 pv_0 pv_1 pv_1 pv_2 pv_2 .'
-          'battery battery inverter_0 inverter_0 inverter_1 inverter_1 ev_0 ev_0'
+          '. pv_2 pv_2 pv_1 pv_1 pv_0 pv_0 .'
+          'inverter_1 inverter_1 inverter_0 inverter_0 battery battery ev_0 ev_0'
           'ev_1 ev_1 grid grid building_0 building_0 ev_2 ev_2'
           'appliance_0 appliance_0 building_1 building_1 building_2 building_2 appliance_1 appliance_1'
           'appliance_2 appliance_2 building_3 building_3 appliance_3 appliance_3 appliance_4 appliance_4';
