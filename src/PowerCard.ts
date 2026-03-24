@@ -1080,6 +1080,7 @@ export class PowerCard extends LitElement {
     const batteryEntities = [
       'inverter0_to_battery_entity',
       'pv0_to_battery_entity',
+      'pv3_to_battery_entity',
       '-battery_to_inverter0_entity',
     ];
     const bubbleData: BubbleData = this.calculateIconBubbleData(
