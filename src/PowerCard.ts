@@ -28,6 +28,7 @@ export interface PowerCardConfig extends LovelaceCardConfig {
   pv0_icon?: string;
   pv1_icon?: string;
   pv2_icon?: string;
+  pv3_icon?: string;
   inverter0_icon?: string;
   inverter1_icon?: string;
   building0_icon?: string;
@@ -50,6 +51,7 @@ export interface PowerCardConfig extends LovelaceCardConfig {
   pv0_entity?: string;
   pv1_entity?: string;
   pv2_entity?: string;
+  pv3_entity?: string;
   inverter0_entity?: string;
   inverter1_entity?: string;
   building0_entity?: string;
@@ -62,6 +64,8 @@ export interface PowerCardConfig extends LovelaceCardConfig {
   pv0_to_inverter0_entity?: string;
   pv1_to_inverter1_entity?: string;
   pv2_to_inverter1_entity?: string;
+  pv3_to_inverter0_entity?: string;
+  pv3_to_battery_entity?: string;
   battery_to_inverter0_entity?: string;
   inverter0_to_battery_entity?: string;
   inverter1_to_inverter0_entity?: string;
@@ -88,6 +92,7 @@ export interface PowerCardConfig extends LovelaceCardConfig {
   pv0_extra_entity?: string;
   pv1_extra_entity?: string;
   pv2_extra_entity?: string;
+  pv3_extra_entity?: string;
   inverter0_extra_entity?: string;
   inverter1_extra_entity?: string;
   building0_extra_entity?: string;
@@ -309,6 +314,8 @@ export class PowerCard extends LitElement {
       this.config.pv1_icon = 'mdi:solar-power-variant';
     if (this.config.pv2_icon == null)
       this.config.pv2_icon = 'mdi:solar-power-variant';
+    if (this.config.pv3_icon == null)
+      this.config.pv3_icon = 'mdi:solar-power-variant';
 
     if (this.config.inverter0_icon == null)
       this.config.inverter0_icon = 'mdi:meter-electric';
@@ -537,10 +544,19 @@ export class PowerCard extends LitElement {
       endY: number;
       detourX: number;
       detourY: number;
+      detour2X?: number;
+      detour2Y?: number;
     },
   ) {
     const entity = this.cardElements.get(sensorName);
     if (entity == null) return html``;
+
+    let pathD = 'M' + line.startX + ',' + line.startY +
+        ' L' + line.detourX + ',' + line.detourY;
+    if (line.detour2X !== undefined && line.detour2Y !== undefined) {
+      pathD += ' L' + line.detour2X + ',' + line.detour2Y;
+    }
+    pathD += ' L' + line.endX + ',' + line.endY;
 
     return html`<svg>
       <defs>
@@ -557,18 +573,7 @@ export class PowerCard extends LitElement {
         </linearGradient>
       </defs>
       <path
-        d="${'M' +
-        line.startX +
-        ',' +
-        line.startY +
-        ' L' +
-        line.detourX +
-        ',' +
-        line.detourY +
-        ' L' +
-        line.endX +
-        ',' +
-        line.endY}"
+        d="${pathD}"
         id="${sensorName + '_line'}"
         stroke="url(#${sensorName + '_gradient'})"
         fill="none"
@@ -666,6 +671,7 @@ export class PowerCard extends LitElement {
       'pv_0',
       'pv_1',
       'pv_2',
+      'pv_3',
       'battery',
       'inverter_0',
       'inverter_1',
@@ -695,6 +701,8 @@ export class PowerCard extends LitElement {
         endY: number;
         detourX: number;
         detourY: number;
+        detour2X?: number;
+        detour2Y?: number;
       }
     > = {};
 
@@ -741,8 +749,53 @@ export class PowerCard extends LitElement {
 
               if (!centerCoordinates[source] || !centerCoordinates[target]) return;
 
+              //If the key is pv3_to_inverter0, route around battery via right side
+              if (key.includes('pv3_to_inverter0')) {
+                const detour1X =
+                  (centerCoordinates['battery'].x + centerCoordinates['ev0'].x) / 2;
+
+                const detour2X =
+                  (centerCoordinates['battery'].x + centerCoordinates['building0'].x) / 2;
+                const detour2Y =
+                  (centerCoordinates['battery'].y + centerCoordinates['building0'].y) / 2;
+
+                // Equal angles at detour2: match incoming angle to outgoing angle
+                const dxOut = Math.abs(centerCoordinates[target].x - detour2X);
+                const dyOut = Math.abs(centerCoordinates[target].y - detour2Y);
+                const dxIn = Math.abs(detour2X - detour1X);
+                const dyIn = dxOut > 0 ? dxIn * dyOut / dxOut : dxIn;
+                const detour1Y = detour2Y - dyIn;
+
+                let angle = Math.atan2(
+                  detour1Y - centerCoordinates[source].y,
+                  detour1X - centerCoordinates[source].x,
+                );
+
+                const startX =
+                  centerCoordinates[source].x + r * Math.cos(angle);
+                const startY =
+                  centerCoordinates[source].y + r * Math.sin(angle);
+
+                angle = Math.atan2(
+                  centerCoordinates[target].y - detour2Y,
+                  centerCoordinates[target].x - detour2X,
+                );
+
+                const endX = centerCoordinates[target].x - r * Math.cos(angle);
+                const endY = centerCoordinates[target].y - r * Math.sin(angle);
+
+                lines[key] = {
+                  startX,
+                  startY,
+                  endX,
+                  endY,
+                  detourX: detour1X,
+                  detourY: detour1Y,
+                  detour2X,
+                  detour2Y,
+                };
               //If the key is inverter0_to_building1, then we need to add a detour to the line
-              if (key.includes('inverter0_to_building1')) {
+              } else if (key.includes('inverter0_to_building1')) {
                 const detourX =
                   centerCoordinates['building0'].x -
                   (centerCoordinates['building0'].x - centerCoordinates['grid'].x) /
@@ -815,6 +868,7 @@ export class PowerCard extends LitElement {
         <div class="pv_0">${this.writePvIconBubble(0)}</div>
         <div class="pv_1">${this.writePvIconBubble(1)}</div>
         <div class="pv_2">${this.writePvIconBubble(2)}</div>
+        <div class="pv_3">${this.writePvIconBubble(3)}</div>
         <div class="battery">${this.writeBatteryIconBubble()}</div>
         <div class="inverter_0">${this.writeInverterIconBubble(0)}</div>
         <div class="inverter_1">${this.writeInverterIconBubble(1)}</div>
@@ -884,6 +938,8 @@ export class PowerCard extends LitElement {
       ];
     } else if (pvNumber === 2) {
       pvEntities = ['pv2_to_inverter1_entity'];
+    } else if (pvNumber === 3) {
+      pvEntities = ['pv3_to_inverter0_entity', 'pv3_to_battery_entity'];
     } else {
       pvEntities = ['pv' + pvNumber + '_to_inverter' + pvNumber + '_entity'];
     }
@@ -1355,6 +1411,9 @@ export class PowerCard extends LitElement {
         margin: auto;
         position: relative;
         cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
       .acc_icon {
         --mdc-icon-size: 40px;
@@ -1375,18 +1434,18 @@ export class PowerCard extends LitElement {
 
       .grid_container {
         display: grid;
-        grid-template-columns: repeat(8, 1fr);
+        grid-template-columns: 1fr 1fr 1fr 1fr;
         grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
         gap: 10px 10px;
         grid-auto-flow: row;
         z-index: 2;
         position: relative;
         grid-template-areas:
-          '. pv_2 pv_2 pv_1 pv_1 pv_0 pv_0 .'
-          'inverter_1 inverter_1 inverter_0 inverter_0 battery battery ev_0 ev_0'
-          'ev_1 ev_1 grid grid building_0 building_0 ev_2 ev_2'
-          'appliance_0 appliance_0 building_1 building_1 building_2 building_2 appliance_1 appliance_1'
-          'appliance_2 appliance_2 building_3 building_3 appliance_3 appliance_3 appliance_4 appliance_4';
+          'pv_2 pv_1 pv_0 pv_3'
+          'inverter_1 inverter_0 battery ev_0'
+          'ev_1 grid building_0 ev_2'
+          'appliance_0 building_1 building_2 appliance_1'
+          'appliance_2 building_3 appliance_3 appliance_4';
       }
 
       .pv_0 {
@@ -1399,6 +1458,10 @@ export class PowerCard extends LitElement {
 
       .pv_2 {
         grid-area: pv_2;
+      }
+
+      .pv_3 {
+        grid-area: pv_3;
       }
 
       .battery {
